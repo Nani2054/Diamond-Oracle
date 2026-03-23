@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Diamond Price Oracle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Cinzel:wght@400;600&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── DARK THEME (default) ── */
+    :root, [data-theme="dark"] {
+      --bg:           #0a0a0f;
+      --bg-deep:      #10101a;
+      --card:         #14141f;
+      --border:       rgba(180, 150, 255, 0.12);
+      --border-act:   rgba(200, 170, 255, 0.35);
+      --accent:       #b496ff;
+      --accent-light: #d4b8ff;
+      --ice:          #e8f0ff;
+      --gold:         #f0c97a;
+      --text:         #c8c0e0;
+      --muted:        #6a6485;
+      --error:        #ff7a8a;
+      --input-bg:     rgba(255,255,255,0.03);
+      --input-focus:  rgba(180, 150, 255, 0.06);
+      --shadow:       0 8px 40px rgba(0,0,0,0.5);
+      --glow-1:       rgba(100, 60, 200, 0.12);
+      --glow-2:       rgba(60, 30, 140, 0.10);
+      --glow-3:       rgba(180, 150, 255, 0.04);
+      --toggle-bg:    rgba(180,150,255,0.15);
+      --toggle-knob:  #b496ff;
+      --section-line: rgba(180,150,255,0.1);
+      --result-bg:    rgba(240, 201, 122, 0.04);
+      --result-err:   rgba(255, 122, 138, 0.04);
+      --chevron:      %23b496ff;
+    }
+
+    /* ── LIGHT THEME ── */
+    [data-theme="light"] {
+      --bg:           #f5f0ff;
+      --bg-deep:      #ede6ff;
+      --card:         #ffffff;
+      --border:       rgba(120, 80, 200, 0.15);
+      --border-act:   rgba(120, 80, 200, 0.45);
+      --accent:       #7c4dcc;
+      --accent-light: #9b72e0;
+      --ice:          #1a0a3a;
+      --gold:         #9a6800;
+      --text:         #3a2a5a;
+      --muted:        #9a8ab0;
+      --error:        #c82020;
+      --input-bg:     rgba(120, 80, 200, 0.04);
+      --input-focus:  rgba(120, 80, 200, 0.08);
+      --shadow:       0 8px 40px rgba(100, 60, 200, 0.1);
+      --glow-1:       rgba(160, 120, 255, 0.08);
+      --glow-2:       rgba(120, 80, 200, 0.06);
+      --glow-3:       rgba(180, 150, 255, 0.03);
+      --toggle-bg:    rgba(120,80,200,0.15);
+      --toggle-knob:  #7c4dcc;
+      --section-line: rgba(120,80,200,0.12);
+      --result-bg:    rgba(154, 104, 0, 0.05);
+      --result-err:   rgba(200, 32, 32, 0.05);
+      --chevron:      %237c4dcc;
+    }
+
+    /* ── BASE ── */
+    html { transition: background 0.4s ease; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Cormorant Garamond', serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      padding: 2rem 1rem;
+      transition: background 0.4s ease, color 0.4s ease;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 10%, var(--glow-1) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 60% at 80% 80%, var(--glow-2) 0%, transparent 60%),
+        radial-gradient(ellipse 30% 30% at 50% 50%, var(--glow-3) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+      transition: all 0.5s ease;
+    }
+
+    /* ── THEME TOGGLE BUTTON ── */
+    .theme-toggle {
+      position: fixed;
+      top: 1.25rem; right: 1.25rem;
+      z-index: 200;
+      display: flex; align-items: center; gap: 0.55rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 40px;
+      padding: 0.38rem 0.8rem 0.38rem 0.45rem;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.3s ease;
+      user-select: none;
+      text-decoration: none;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--border-act);
+      box-shadow: 0 0 22px rgba(180,150,255,0.18);
+    }
+
+    /* pill track */
+    .toggle-track {
+      width: 36px; height: 19px;
+      background: var(--toggle-bg);
+      border-radius: 99px;
+      border: 1px solid var(--border-act);
+      position: relative;
+      flex-shrink: 0;
+      transition: background 0.35s ease;
+    }
+
+    /* knob */
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 13px; height: 13px;
+      background: var(--toggle-knob);
+      border-radius: 50%;
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), background 0.35s ease;
+      box-shadow: 0 0 6px rgba(180,150,255,0.45);
+    }
+
+    [data-theme="light"] .toggle-track::after {
+      transform: translateX(17px);
+    }
+
+    .toggle-emoji { font-size: 0.82rem; line-height: 1; }
+
+    .toggle-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.59rem; letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      transition: color 0.35s;
+      white-space: nowrap;
+    }
+
+    /* ── CONTAINER ── */
+    .container {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 720px;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      text-align: center; margin-bottom: 2.8rem;
+      animation: fadeDown 0.9s ease both;
+    }
+
+    .gem-icon { width: 60px; height: 60px; margin: 0 auto 1.3rem; }
+
+    .gem-icon svg {
+      width: 100%; height: 100%;
+      filter: drop-shadow(0 0 16px rgba(180,150,255,0.5));
+      animation: gemPulse 4s ease-in-out infinite;
+      transition: filter 0.4s;
+    }
+
+    [data-theme="light"] .gem-icon svg {
+      filter: drop-shadow(0 0 12px rgba(120,80,200,0.4));
+    }
+
+    @keyframes gemPulse {
+      0%,100% { filter: drop-shadow(0 0 12px rgba(180,150,255,0.4)); transform: scale(1); }
+      50%      { filter: drop-shadow(0 0 26px rgba(200,170,255,0.7)); transform: scale(1.04); }
+    }
+
+    [data-theme="light"] .gem-icon svg {
+      animation: gemPulseLight 4s ease-in-out infinite;
+    }
+
+    @keyframes gemPulseLight {
+      0%,100% { filter: drop-shadow(0 0 10px rgba(120,80,200,0.35)); transform: scale(1); }
+      50%      { filter: drop-shadow(0 0 20px rgba(120,80,200,0.6));  transform: scale(1.04); }
+    }
+
+    .header h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.8rem, 4vw, 2.7rem);
+      font-weight: 400; letter-spacing: 0.12em;
+      color: var(--ice);
+      margin-bottom: 0.4rem;
+      text-shadow: 0 0 40px rgba(180,150,255,0.22);
+      transition: color 0.4s, text-shadow 0.4s;
+    }
+
+    .header p {
+      font-size: 1.05rem; color: var(--muted);
+      font-style: italic; letter-spacing: 0.04em;
+    }
+
+    .divider {
+      display: flex; align-items: center; gap: 1rem;
+      margin: 0 auto 2.8rem; max-width: 280px;
+    }
+
+    .divider::before { content:''; flex:1; height:1px; background: linear-gradient(to right, transparent, var(--border-act)); }
+    .divider::after  { content:''; flex:1; height:1px; background: linear-gradient(to left,  transparent, var(--border-act)); }
+
+    .divider span {
+      color: var(--accent); font-size: 0.7rem;
+      letter-spacing: 0.3em; font-family: 'DM Mono', monospace;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 2.5rem;
+      position: relative; overflow: hidden;
+      box-shadow: var(--shadow);
+      animation: fadeUp 0.9s ease 0.2s both;
+      transition: background 0.4s, border-color 0.4s, box-shadow 0.4s;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute; top:0; left:0; right:0; height:1px;
+      background: linear-gradient(90deg, transparent 0%, var(--accent) 30%, var(--accent-light) 70%, transparent 100%);
+      opacity: 0.55;
+    }
+
+    /* ── FORM ── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.42rem; }
+    .form-group.full { grid-column: 1 / -1; }
+
+    label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.66rem; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--accent);
+      transition: color 0.35s;
+    }
+
+    label span.hint {
+      color: var(--muted); font-size: 0.58rem;
+      letter-spacing: 0.1em; margin-left: 0.4rem;
+    }
+
+    input, select {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--ice);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem;
+      padding: 0.7rem 1rem;
+      width: 100%; outline: none;
+      -webkit-appearance: none; appearance: none;
+      transition: border-color 0.25s, background 0.25s, box-shadow 0.25s, color 0.4s;
+    }
+
+    select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='var(--chevron)' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      padding-right: 2.5rem;
+    }
+
+    /* Per-theme chevron SVGs since CSS vars don't work inside url() */
+    [data-theme="dark"] select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23b496ff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    }
+
+    [data-theme="light"] select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237c4dcc' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    }
+
+    select option { background: var(--bg-deep); color: var(--ice); }
+
+    input:focus, select:focus {
+      border-color: var(--border-act);
+      background: var(--input-focus);
+      box-shadow: 0 0 0 3px rgba(180,150,255,0.08);
+    }
+
+    input:hover:not(:focus), select:hover:not(:focus) {
+      border-color: rgba(180,150,255,0.22);
+    }
+
+    [data-theme="light"] input:hover:not(:focus),
+    [data-theme="light"] select:hover:not(:focus) {
+      border-color: rgba(120,80,200,0.3);
+    }
+
+    input.error, select.error {
+      border-color: var(--error) !important;
+      box-shadow: 0 0 0 3px rgba(255,100,120,0.1);
+    }
+
+    .error-msg {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem; color: var(--error);
+      letter-spacing: 0.04em; min-height: 0.8rem;
+    }
+
+    .section-label {
+      font-family: 'Cinzel', serif;
+      font-size: 0.67rem; letter-spacing: 0.25em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 1rem; margin-top: 0.5rem;
+      display: flex; align-items: center; gap: 0.75rem;
+      transition: color 0.35s;
+    }
+
+    .section-label::after { content:''; flex:1; height:1px; background: var(--section-line); }
+
+    /* ── SUBMIT ── */
+    .submit-btn {
+      width: 100%; padding: 0.95rem 2rem;
+      background: linear-gradient(135deg, rgba(180,150,255,0.15) 0%, rgba(130,100,220,0.2) 100%);
+      border: 1px solid var(--border-act);
+      border-radius: 10px;
+      color: var(--accent-light);
+      font-family: 'Cinzel', serif;
+      font-size: 0.9rem; font-weight: 600;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      cursor: pointer; margin-top: 1.5rem;
+      transition: all 0.3s ease;
+      position: relative; overflow: hidden;
+    }
+
+    .submit-btn::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(180,150,255,0.25), rgba(130,100,220,0.3));
+      opacity: 0; transition: opacity 0.3s;
+    }
+
+    .submit-btn:hover::before { opacity: 1; }
+    .submit-btn:hover {
+      box-shadow: 0 0 28px rgba(180,150,255,0.2), 0 4px 20px rgba(0,0,0,0.15);
+      transform: translateY(-1px); border-color: var(--accent);
+    }
+    .submit-btn:active { transform: translateY(0); }
+    .submit-btn.loading { pointer-events: none; opacity: 0.7; }
+    .submit-btn .btn-text { position: relative; z-index: 1; }
+
+    .spinner {
+      display: inline-block; width: 13px; height: 13px;
+      border: 2px solid rgba(180,150,255,0.3);
+      border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      margin-right: 7px; vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESULT ── */
+    .result-panel {
+      margin-top: 2rem;
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.8rem 2rem;
+      background: var(--result-bg);
+      display: none;
+      animation: revealResult 0.5s ease both;
+      position: relative; overflow: hidden;
+      transition: background 0.4s, border-color 0.4s;
+    }
+
+    .result-panel::before {
+      content: ''; position: absolute; top:0; left:0; right:0; height:1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+
+    .result-panel.visible { display: block; }
+
+    .result-panel.error-panel {
+      background: var(--result-err);
+      border-color: rgba(255,122,138,0.22);
+    }
+
+    .result-panel.error-panel::before {
+      background: linear-gradient(90deg, transparent, var(--error), transparent);
+    }
+
+    .result-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem; letter-spacing: 0.25em;
+      text-transform: uppercase; color: var(--gold);
+      margin-bottom: 0.35rem; transition: color 0.4s;
+    }
+
+    .result-panel.error-panel .result-label { color: var(--error); }
+
+    .result-price {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: var(--gold); font-weight: 400;
+      text-shadow: 0 0 28px rgba(240,201,122,0.28);
+      letter-spacing: 0.05em; transition: color 0.4s;
+    }
+
+    .result-sub {
+      font-size: 0.88rem; color: var(--muted);
+      margin-top: 0.22rem; font-style: italic;
+    }
+
+    .result-error-text { font-size: 1rem; color: var(--error); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes revealResult {
+      from { opacity:0; transform: translateY(10px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+    @keyframes fadeDown {
+      from { opacity:0; transform: translateY(-20px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity:0; transform: translateY(20px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      text-align: center; margin-top: 2rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem; color: var(--muted);
+      letter-spacing: 0.15em;
+      animation: fadeUp 0.9s ease 0.4s both;
+    }
+
+    .hidden { display: none !important; }
+
+    .login-overlay {
+      position: fixed; inset: 0;
+      background: rgba(10, 10, 15, 0.95);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .login-panel {
+      width: min(420px, 100%);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 18px;
+      background: rgba(20, 20, 30, 0.96);
+      padding: 1.85rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .login-panel h2 {
+      margin-bottom: 0.4rem;
+      font-size: 1.6rem;
+      color: #fff;
+    }
+
+    .login-panel p {
+      margin-bottom: 1.25rem;
+      color: #d9d9ef;
+      font-size: 0.95rem;
+    }
+
+    .google-btn {
+      width: 100%;
+      background: #fff;
+      color: #202124;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.28s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      box-shadow: 0 5px 12px rgba(0,0,0,0.14);
+    }
+
+    .google-btn:hover { transform: translateY(-1px); box-shadow: 0 9px 20px rgba(0,0,0,0.23); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 540px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-group.full { grid-column: 1; }
+      .card { padding: 1.5rem; }
+      .theme-toggle { top: 0.8rem; right: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-overlay hidden" id="loginOverlay"></div>
+
+<!-- ── DARK / LIGHT TOGGLE ─────────────────────────── -->
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+  <div class="toggle-track"></div>
+  <span class="toggle-emoji" id="toggleEmoji">🌙</span>
+  <span class="toggle-label" id="toggleLabel">Dark</span>
+</button>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="gem-icon">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="32,4 56,20 56,44 32,60 8,44 8,20" fill="rgba(180,150,255,0.08)" stroke="rgba(180,150,255,0.55)" stroke-width="1"/>
+        <polygon points="32,4 56,20 32,28"  fill="rgba(180,150,255,0.14)"/>
+        <polygon points="32,4 8,20 32,28"   fill="rgba(200,170,255,0.19)"/>
+        <polygon points="8,20 32,28 8,44"   fill="rgba(140,100,220,0.15)"/>
+        <polygon points="56,20 32,28 56,44" fill="rgba(120,80,200,0.12)"/>
+        <polygon points="8,44 32,28 32,60"  fill="rgba(160,120,240,0.10)"/>
+        <polygon points="56,44 32,28 32,60" fill="rgba(180,150,255,0.08)"/>
+        <line x1="32" y1="4"  x2="32" y2="28" stroke="rgba(220,200,255,0.4)" stroke-width="0.5"/>
+        <line x1="8"  y1="20" x2="56" y2="20" stroke="rgba(220,200,255,0.3)" stroke-width="0.5"/>
+        <line x1="8"  y1="44" x2="56" y2="44" stroke="rgba(220,200,255,0.3)" stroke-width="0.5"/>
+      </svg>
+    </div>
+    <h1>Diamond Oracle</h1>
+    <p>AI-powered gemstone valuation</p>
+  </div>
+
+  <div class="divider"><span>✦</span></div>
+
+  <!-- CARD -->
+  <div class="card">
+    <form id="diamondForm" novalidate>
+
+      <div class="section-label">4C Grading</div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="carat">Carat <span class="hint">weight</span></label>
+          <input type="number" id="carat" placeholder="e.g. 1.25" min="0.1" max="10" step="0.01"/>
+          <div class="error-msg" id="err-carat"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="cut">Cut <span class="hint">quality</span></label>
+          <select id="cut">
+            <option value="">Select cut…</option>
+            <option value="Fair">Fair</option>
+            <option value="Good">Good</option>
+            <option value="Very Good">Very Good</option>
+            <option value="Premium">Premium</option>
+            <option value="Ideal">Ideal</option>
+          </select>
+          <div class="error-msg" id="err-cut"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="color">Color <span class="hint">D–J</span></label>
+          <select id="color">
+            <option value="">Select color…</option>
+            <option value="D">D — Colorless</option>
+            <option value="E">E — Colorless</option>
+            <option value="F">F — Colorless</option>
+            <option value="G">G — Near colorless</option>
+            <option value="H">H — Near colorless</option>
+            <option value="I">I — Near colorless</option>
+            <option value="J">J — Near colorless</option>
+          </select>
+          <div class="error-msg" id="err-color"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="clarity">Clarity</label>
+          <select id="clarity">
+            <option value="">Select clarity…</option>
+            <option value="I1">I1 — Included</option>
+            <option value="SI2">SI2 — Slightly included</option>
+            <option value="SI1">SI1 — Slightly included</option>
+            <option value="VS2">VS2 — Very slightly included</option>
+            <option value="VS1">VS1 — Very slightly included</option>
+            <option value="VVS2">VVS2 — Very very slightly</option>
+            <option value="VVS1">VVS1 — Very very slightly</option>
+            <option value="IF">IF — Internally flawless</option>
+          </select>
+          <div class="error-msg" id="err-clarity"></div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:1.5rem;">Measurements</div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="depth">Depth % <span class="hint">z / avg(x,y)</span></label>
+          <input type="number" id="depth" placeholder="e.g. 61.5" min="40" max="80" step="0.1"/>
+          <div class="error-msg" id="err-depth"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="table">Table % <span class="hint">width ratio</span></label>
+          <input type="number" id="table" placeholder="e.g. 57" min="40" max="95" step="0.1"/>
+          <div class="error-msg" id="err-table"></div>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">
+        <span class="btn-text">Valuate Diamond</span>
+      </button>
+    </form>
+
+    <!-- RESULT PANEL -->
+    <div class="result-panel" id="resultPanel">
+      <div class="result-label"      id="resultLabel">Estimated Value</div>
+      <div class="result-price"      id="resultPrice"></div>
+      <div class="result-sub"        id="resultSub"></div>
+      <div class="result-error-text" id="resultErr"></div>
+    </div>
+  </div>
+
+  <div class="footer">Diamond Oracle · ML Price Prediction · v1.0</div>
+</div>
+
+<script>
+  /* ── THEME TOGGLE ── */
+  const html        = document.documentElement;
+  const themeBtn    = document.getElementById('themeToggle');
+  const toggleEmoji = document.getElementById('toggleEmoji');
+  const toggleLabel = document.getElementById('toggleLabel');
+
+  // Restore saved preference
+  applyTheme(localStorage.getItem('dTheme') || 'dark');
+
+  themeBtn.addEventListener('click', () => {
+    applyTheme(html.dataset.theme === 'dark' ? 'light' : 'dark');
+  });
+
+  function applyTheme(t) {
+    html.setAttribute('data-theme', t);
+    localStorage.setItem('dTheme', t);
+    toggleEmoji.textContent  = t === 'dark' ? '🌙' : '☀️';
+    toggleLabel.textContent  = t === 'dark' ? 'Dark' : 'Light';
+  }
+
+  // Always show the app (no login required)
+  function showApp() {
+    document.querySelector('.container').classList.remove('hidden');
+  }
+
+  showApp();
+
+  /* ── FORM ── */
+  const API_URL = '/predict'; // use relative endpoint for Flask app
+
+  const F = {
+    carat:   { el: document.getElementById('carat'),   err: document.getElementById('err-carat') },
+    cut:     { el: document.getElementById('cut'),     err: document.getElementById('err-cut') },
+    color:   { el: document.getElementById('color'),   err: document.getElementById('err-color') },
+    clarity: { el: document.getElementById('clarity'), err: document.getElementById('err-clarity') },
+    depth:   { el: document.getElementById('depth'),   err: document.getElementById('err-depth') },
+    table:   { el: document.getElementById('table'),   err: document.getElementById('err-table') },
+  };
+
+  const form        = document.getElementById('diamondForm');
+  const submitBtn   = document.getElementById('submitBtn');
+  const resultPanel = document.getElementById('resultPanel');
+  const resultLabel = document.getElementById('resultLabel');
+  const resultPrice = document.getElementById('resultPrice');
+  const resultSub   = document.getElementById('resultSub');
+  const resultErr   = document.getElementById('resultErr');
+
+  function clearErrors() {
+    Object.values(F).forEach(f => { f.el.classList.remove('error'); f.err.textContent = ''; });
+  }
+
+  function validate() {
+    let ok = true;
+    const fail = (k, m) => { F[k].el.classList.add('error'); F[k].err.textContent = m; ok = false; };
+
+    if (!F.carat.el.value   || +F.carat.el.value <= 0) fail('carat',   'Enter a valid carat weight (> 0)');
+    if (!F.cut.el.value)                                fail('cut',     'Please select a cut grade');
+    if (!F.color.el.value)                              fail('color',   'Please select a color grade');
+    if (!F.clarity.el.value)                            fail('clarity', 'Please select a clarity grade');
+    if (!F.depth.el.value   || isNaN(+F.depth.el.value)) fail('depth', 'Enter a valid depth percentage');
+    if (!F.table.el.value   || isNaN(+F.table.el.value)) fail('table', 'Enter a valid table percentage');
+    return ok;
+  }
+
+  function setLoading(on) {
+    submitBtn.classList.toggle('loading', on);
+    submitBtn.querySelector('.btn-text').innerHTML = on
+      ? '<span class="spinner"></span>Analysing…'
+      : 'Valuate Diamond';
+  }
+
+  function showResult(price) {
+    resultPanel.className       = 'result-panel visible';
+    resultLabel.textContent     = 'Estimated Market Value';
+    resultPrice.textContent     = '$' + price.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    resultSub.textContent       = 'Based on current market data and your diamond\'s 4C grading.';
+    resultErr.textContent       = '';
+  }
+
+  function showError(msg) {
+    resultPanel.className       = 'result-panel visible error-panel';
+    resultLabel.textContent     = 'Prediction Error';
+    resultPrice.textContent     = '';
+    resultSub.textContent       = '';
+    resultErr.textContent       = msg;
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    clearErrors();
+    if (!validate()) return;
+
+    setLoading(true);
+    resultPanel.classList.remove('visible');
+
+    const payload = {
+      carat:   parseFloat(F.carat.el.value),
+      cut:     F.cut.el.value,
+      color:   F.color.el.value,
+      clarity: F.clarity.el.value,
+      depth:   parseFloat(F.depth.el.value),
+      table:   parseFloat(F.table.el.value),
+    };
+
+    try {
+      const res  = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Server error');
+      if (typeof data.price !== 'number') throw new Error('Invalid response from server');
+      showResult(data.price);
+    } catch (err) {
+      showError(err.message || 'Unable to reach the prediction server.');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // Clear field errors on change
+  Object.values(F).forEach(f => {
+    f.el.addEventListener('input', () => { f.el.classList.remove('error'); f.err.textContent = ''; });
+  });
+</script>
+</body>
+</html>
