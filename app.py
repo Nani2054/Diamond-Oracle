@@ -1,9 +1,15 @@
 from flask import Flask, send_file, jsonify, request
 from flask_cors import CORS
 import pickle
+import os
 
 app = Flask(__name__, static_folder='.', static_url_path='/')
 CORS(app)
+
+# Check if model exists, train if it doesn't
+if not os.path.exists("model.pkl"):
+    print("Model not found. Training now...")
+    import train_model
 
 # Load trained model from file
 model = pickle.load(open('model.pkl', 'rb'))
